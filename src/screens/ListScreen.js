@@ -1,63 +1,120 @@
-import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  FlatList,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+
+import NewsCard from '../components/NewsCard';
+import { API_URL } from '../constants/api';
 
 export default function ListScreen({ navigation }) {
-  const handlePreviewDetail = () => {
-    navigation.navigate('Detay', {
-      item: {
-        objectID: 'preview',
-        title: 'Python Teknoloji Haberleri (API entegrasyonu hazırlanıyor)',
-        author: 'hn',
-        points: 0,
-        num_comments: 0,
-      },
-    });
+  // 1. DURUM (STATE)
+  const [news, setNews] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // 2. VERİYİ ÇEK
+  const loadNews = async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch(API_URL);
+      if (!response.ok) {
+        throw new Error(`Sunucu hatası: ${response.status}`);
+      }
+      const json = await response.json();
+      setNews((json.hits || []).filter((item) => item.title));
+    } catch (e) {
+      console.log(e);
+      setError('Haberler yüklenemedi. İnterneti kontrol edin.');
+    } finally {
+      setLoading(false);
+    }
   };
 
+  useEffect(() => {
+    loadNews();
+  }, []);
+
+  // 3. EKRAN
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>PyNews · Python Haberleri</Text>
-      <Text style={styles.subtitle}>
-        K28-c varyantı için temel navigasyon ve ekran yapısı hazırlandı.
-      </Text>
-      <TouchableOpacity style={styles.button} onPress={handlePreviewDetail}>
-        <Text style={styles.buttonText}>Detay Ekranını Test Et</Text>
-      </TouchableOpacity>
+      {loading && (
+        <ActivityIndicator size="large" color="#2563eb" style={styles.loader} />
+      )}
+
+      {error && (
+        <View style={styles.errorBox}>
+          <Text style={styles.errorText}>{error}</Text>
+          <Pressable style={styles.retry} onPress={loadNews}>
+            <Text style={styles.retryText}>Tekrar dene</Text>
+          </Pressable>
+        </View>
+      )}
+
+      {!loading && !error && (
+        <FlatList
+          data={news}
+          keyExtractor={(item) => String(item.objectID)}
+          renderItem={({ item }) => (
+            <NewsCard
+              item={item}
+              onPress={() => navigation.navigate('Detay', { item })}
+            />
+          )}
+          ItemSeparatorComponent={() => <View style={styles.separator} />}
+          ListEmptyComponent={
+            <Text style={styles.empty}>Gösterilecek haber bulunamadı.</Text>
+          }
+        />
+      )}
     </View>
   );
 }
 
+// 4. STİLLER
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#f8fafc',
+  },
+  loader: {
+    marginTop: 40,
+  },
+  errorBox: {
+    margin: 16,
+    padding: 16,
+    borderRadius: 12,
     alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
+    backgroundColor: '#fef2f2',
   },
-  title: {
-    fontSize: 22,
+  errorText: {
+    color: '#b91c1c',
+    textAlign: 'center',
+  },
+  retry: {
+    marginTop: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: '#b91c1c',
+  },
+  retryText: {
+    color: '#fff',
     fontWeight: '700',
-    color: '#0F172A',
-    marginBottom: 8,
+  },
+  separator: {
+    height: 1,
+    backgroundColor: '#e2e8f0',
+  },
+  empty: {
+    padding: 32,
     textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: 15,
-    color: '#475569',
-    textAlign: 'center',
-    marginBottom: 24,
-    lineHeight: 22,
-  },
-  button: {
-    backgroundColor: '#2563EB',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 10,
-  },
-  buttonText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '600',
+    color: '#94a3b8',
   },
 });
